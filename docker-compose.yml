@@ -1,0 +1,22 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        - DEV=${DEV}
+    init: true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "3m"
+        max-file: "3"
+    restart: unless-stopped
+    environment:
+      - API_ROOT_PATH=${API_ROOT_PATH}
+      - TELEGRAM_MAX_MESSAGE_LENGTH=${TELEGRAM_MAX_MESSAGE_LENGTH}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - DEV=${DEV}
+    ports:
+      - "8000:9000"
+    volumes:
+      - ./app:/app
