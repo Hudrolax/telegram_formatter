@@ -53,3 +53,17 @@ def test_custom_emoji_from_markdown_image():
     text = "![🙂](tg://emoji?id=123)"
     result = format_markdown_for_telegram(text, 4096)
     assert result == ["<tg-emoji emoji-id=\"123\">🙂</tg-emoji>"]
+
+
+def test_json_object_wrapped_and_pretty_printed():
+    text = "{\"a\":1,\"b\":[2,3]}"
+    result = format_markdown_for_telegram(text, 4096)
+    assert result == [
+        "<pre><code class=\"language-json\">{\n  &quot;a&quot;: 1,\n  &quot;b&quot;: [\n    2,\n    3\n  ]\n}\n</code></pre>"
+    ]
+
+
+def test_json_not_processed_inside_inline_code():
+    text = "`{\"a\":1}`"
+    result = format_markdown_for_telegram(text, 4096)
+    assert result == ["<code>{&quot;a&quot;:1}</code>"]

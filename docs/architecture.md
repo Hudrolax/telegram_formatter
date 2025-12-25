@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is a lightweight backend service that accepts Markdown text and returns Telegram-compatible HTML message parts. It focuses on sanitizing unsupported characters, converting Markdown to Telegram HTML (including custom emoji tags), and splitting messages to Telegram's length limit (counted after entity parsing), with careful handling of code blocks.
+This project is a lightweight backend service that accepts Markdown text and returns Telegram-compatible HTML message parts. It focuses on sanitizing unsupported characters, formatting embedded JSON into fenced code blocks, converting Markdown to Telegram HTML (including custom emoji tags), and splitting messages to Telegram's length limit (counted after entity parsing), with careful handling of code blocks.
 
 ## Technology Stack
 
@@ -40,9 +40,10 @@ Contains core business logic for message formatting.
 
 1. API accepts Markdown text.
 2. Text is sanitized (control characters removed).
-3. Markdown is converted to Telegram HTML and sanitized to allowed tags/attributes.
-4. Result is split into multiple message parts if it exceeds the configured length (by Telegram's entity-parsed length), keeping code blocks intact when possible.
-5. API returns an array of message objects `{ "text": "..." }`.
+3. Embedded valid JSON (outside code spans/blocks) is converted into fenced code blocks with pretty formatting.
+4. Markdown is converted to Telegram HTML and sanitized to allowed tags/attributes.
+5. Result is split into multiple message parts if it exceeds the configured length (by Telegram's entity-parsed length), keeping code blocks intact when possible.
+6. API returns an array of message objects `{ "text": "..." }`.
 
 ## Development & Deployment
 

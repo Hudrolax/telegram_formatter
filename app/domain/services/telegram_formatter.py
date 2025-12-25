@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import html
 from html.parser import HTMLParser
+import json
 import re
 import uuid
 
@@ -14,6 +15,7 @@ _CODE_BLOCK_RE = re.compile(r"```(.*?)```", re.DOTALL)
 _INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
 _SPOILER_RE = re.compile(r"\|\|(.+?)\|\|", re.DOTALL)
 _TG_EMOJI_ID_RE = re.compile(r"^tg://emoji\?id=(\d+)$", re.IGNORECASE)
+_JSON_START_RE = re.compile(r"[\[{]")
 
 
 @dataclass(frozen=True)
@@ -29,7 +31,8 @@ def format_markdown_for_telegram(text: str, max_length: int) -> list[str]:
     if cleaned.strip() == "":
         return []
 
-    prepared = _replace_spoilers(cleaned)
+    prepared = _format_json_blocks(cleaned)
+    prepared = _replace_spoilers(prepared)
     html_text = _markdown_to_html(prepared)
     tokens = _sanitize_html(html_text)
     tokens = _trim_trailing_newlines(tokens)
@@ -42,6 +45,18 @@ def _sanitize_text(text: str) -> str:
 
 
 def _replace_spoilers(text: str) -> str:
+    protected, tokens = _stash_code_segments(text)
+    protected = _SPOILER_RE.sub(r'<span class="tg-spoiler">\1</span>', protected)
+    return _restore_code_segments(protected, tokens)
+
+
+def _format_json_blocks(text: str) -> str:
+    protected, tokens = _stash_code_segments(text)
+    formatted = _format_json_in_text(protected)
+    return _restore_code_segments(formatted, tokens)
+
+
+def _stash_code_segments(text: str) -> tuple[str, list[tuple[str, str]]]:
     tokens: list[tuple[str, str]] = []
 
     def stash(match: re.Match[str]) -> str:
@@ -51,13 +66,63 @@ def _replace_spoilers(text: str) -> str:
 
     protected = _CODE_BLOCK_RE.sub(stash, text)
     protected = _INLINE_CODE_RE.sub(stash, protected)
+    return protected, tokens
 
-    protected = _SPOILER_RE.sub(r'<span class="tg-spoiler">\1</span>', protected)
 
+def _restore_code_segments(text: str, tokens: list[tuple[str, str]]) -> str:
     for placeholder, original in tokens:
-        protected = protected.replace(placeholder, original)
+        text = text.replace(placeholder, original)
+    return text
 
-    return protected
+
+def _format_json_in_text(text: str) -> str:
+    decoder = json.JSONDecoder()
+    parts: list[str] = []
+    index = 0
+    last_char = ""
+
+    while index < len(text):
+        match = _JSON_START_RE.search(text, index)
+        if not match:
+            tail = text[index:]
+            parts.append(tail)
+            if tail:
+                last_char = tail[-1]
+            break
+
+        start = match.start()
+        prefix = text[index:start]
+        parts.append(prefix)
+        if prefix:
+            last_char = prefix[-1]
+
+        try:
+            parsed, end = decoder.raw_decode(text[start:])
+        except json.JSONDecodeError:
+            parts.append(text[start])
+            last_char = text[start]
+            index = start + 1
+            continue
+
+        if not isinstance(parsed, (dict, list)):
+            parts.append(text[start])
+            last_char = text[start]
+            index = start + 1
+            continue
+
+        pretty = json.dumps(parsed, ensure_ascii=False, indent=2)
+        needs_leading = last_char not in ("", "\n")
+        next_char = text[start + end : start + end + 1]
+        needs_trailing = next_char not in ("", "\n")
+        leading = "\n" if needs_leading else ""
+        trailing = "\n" if needs_trailing else ""
+        block = f"{leading}```json\n{pretty}\n```{trailing}"
+        parts.append(block)
+        if block:
+            last_char = block[-1]
+        index = start + end
+
+    return "".join(parts)
 
 
 def _markdown_to_html(text: str) -> str:

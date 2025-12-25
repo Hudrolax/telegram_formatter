@@ -7,6 +7,7 @@
 - Конвертация Markdown → Telegram HTML
 - Санитизация входного текста и HTML
 - Разбиение сообщений по лимиту Telegram с сохранением блоков кода
+- Автоформатирование валидного JSON в блок кода
 - Простое API на FastAPI
 
 ## Запуск
@@ -48,8 +49,7 @@ docker compose run --rm app sh -c "pytest"
 ## Линтинг
 
 ```bash
-cd app
-ruff check .
+docker compose run --rm app sh -c "ruff check ."
 ```
 
 ## Репозиторий
